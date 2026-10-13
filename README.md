@@ -145,7 +145,7 @@ O `docs/solucao.md` deve explicar como subir o ambiente, executar o pipeline, co
 
 ## Etapa 8 — Preparar a apresentação
 
-Prepare uma apresentação de aproximadamente **15 minutos** para a defesa técnica, cobrindo entendimento do problema, fontes, arquitetura, camadas, qualidade, resultados, reprocessamento, trade-offs e próximos passos. Priorize uma comunicação clara e objetiva; representações visuais podem ajudar a sintetizar fluxos, relações entre entidades e decisões arquiteturais.
+Prepare uma apresentação de aproximadamente **20 minutos** para a defesa técnica, cobrindo entendimento do problema, fontes, arquitetura, camadas, qualidade, resultados, reprocessamento, trade-offs e próximos passos. Priorize uma comunicação clara e objetiva; representações visuais podem ajudar a sintetizar fluxos, relações entre entidades e decisões arquiteturais.
 
 ## Entrega obrigatória
 
