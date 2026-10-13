@@ -1,0 +1,43 @@
+# Configuração local e segredos
+.env
+*.secret
+*.key
+
+# Dados baixados e resultados gerados
+*.csv
+*.csv.gz
+*.parquet
+*.json
+*.jsonl
+*.sqlite
+*.db
+
+# Logs e temporários
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Sistema operacional e editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
