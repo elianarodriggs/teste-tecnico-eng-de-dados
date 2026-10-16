@@ -6,18 +6,6 @@ size: 16:9
 title: Pipeline SIGMU
 ---
 
-<style>
-section { font-family: "Segoe UI", sans-serif; background: #f4f7fb; color: #1c2833; padding: 46px 56px; font-size: 26px; }
-h1, h2 { color: #0e3a5d; }
-section.lead { background: #0e3a5d; color: #f4f7fb; }
-section.lead h1, section.lead h2 { color: white; }
-table { font-size: 20px; width: 100%; }
-th { background: #0e3a5d; color: white; }
-.grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-.card { background: white; border-top: 6px solid #1a5276; padding: 12px 14px; }
-.card h3 { margin: 0 0 6px; color: #0e3a5d; font-size: 22px; }
-</style>
-
 <!-- _class: lead -->
 
 # Pipeline SIGMU
