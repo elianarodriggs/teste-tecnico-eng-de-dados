@@ -70,7 +70,7 @@ sudo make down
 
 ## Onde ficam os dados
 
-No volume Docker `seaweedfs_data`, bucket `lake`. Não vão para o Git.
+No volume Docker `seaweedfs_data`, bucket `lake`. 
 
 - Filer: http://localhost:8888
 - S3: http://localhost:8333
