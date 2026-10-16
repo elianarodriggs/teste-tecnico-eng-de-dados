@@ -1,9 +1,10 @@
-from storage import extraction_date, read_parquet
+from lago import Lago
 
-when = extraction_date()
-agregado = read_parquet(f"gold/agregado_regional_assunto/extraction_date={when}/data.parquet")
-validacao = read_parquet(f"gold/validacao/extraction_date={when}/data.parquet")
-print("extracao", when)
+lago = Lago()
+quando = lago.data_extracao
+agregado = lago.ler_parquet(f"gold/agregado_regional_assunto/extraction_date={quando}/data.parquet")
+validacao = lago.ler_parquet(f"gold/validacao/extraction_date={quando}/data.parquet")
+print("extracao", quando)
 print(validacao.T.to_string(header=False))
 print()
 colunas = [

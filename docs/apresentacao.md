@@ -66,8 +66,8 @@ CSV         original    Parquet     1 linha por solicitação
 | Peça | Função |
 |---|---|
 | SeaweedFS | bucket `lake`, compatível com S3 |
-| `src/ingest.py` | download e Bronze |
-| `src/build_silver.py` | tipo, nulo, quarentena |
+| `src/main.py` | sobe bronze, silver e gold |
+| `src/lago.py` | grava e lê o SeaweedFS |
 | `sql/gold.sql` | DuckDB monta o fato e o agregado |
 | Docker | o pipeline roda no container |
 
