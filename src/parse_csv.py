@@ -6,13 +6,11 @@ DELIMITER = ";"
 
 
 def _is_mask(line):
-    # a segunda linha do CSV e so tracos: --------;--------
     compact = line.replace(DELIMITER, "").strip()
     return bool(compact) and set(compact) <= {"-"}
 
 
 def parse_csv(raw):
-    # a Bronze guarda o arquivo inteiro. aqui eu só separo o que dá para ler
     null_bytes = raw.count(b"\x00")
     text = raw.decode("latin-1").replace("\x00", "")
     lines = text.splitlines()
@@ -29,7 +27,6 @@ def parse_csv(raw):
         if not line.strip():
             rejected.append({"line_number": index, "reason": "linha_vazia", "raw_line": line})
             continue
-        # ponto e vírgula solto no texto quebra a contagem. não invento coluna
         if line.count(DELIMITER) != expected - 1:
             rejected.append(
                 {"line_number": index, "reason": "contagem_de_campos", "raw_line": line[:500]}
@@ -44,7 +41,6 @@ def parse_csv(raw):
 
 
 def blank_to_null(frame):
-    # vazio vira nulo. nulo não vira zero
     cleaned = frame.copy()
     for column in cleaned.columns:
         text = cleaned[column].astype("string").str.strip()
@@ -53,8 +49,6 @@ def blank_to_null(frame):
 
 
 def parse_number(series):
-    # neste recorte o decimal e ponto, como em 2.03.
-    # se aparecer virgula, trato como decimal e tiro o ponto de milhar
     text = series.astype("string").str.strip()
     text = text.mask(text == "", pd.NA)
     has_comma = text.str.contains(",", na=False)
@@ -87,7 +81,6 @@ def apply_types(table, frame):
 
 
 def deduplicate(frame, primary_key):
-    # duplicata igual sai. mesma chave com conteudo diferente: fica a primeira e eu conto
     metrics = {"null_keys": 0, "exact_duplicates": 0, "divergent_duplicates": 0}
     if not primary_key or any(column not in frame.columns for column in primary_key):
         return frame, metrics

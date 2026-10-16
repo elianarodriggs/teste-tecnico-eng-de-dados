@@ -9,7 +9,6 @@ from ingest import run_ingest
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", stream=sys.stdout)
-    # bronze, silver, gold ou all. sem argumento, roda as tres
     stage = sys.argv[1] if len(sys.argv) > 1 else "all"
     summary = {}
     if stage in {"all", "bronze"}:

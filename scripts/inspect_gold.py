@@ -1,5 +1,3 @@
-# Lê a Gold de hoje no SeaweedFS e imprime o ranking.
-
 from storage import extraction_date, read_parquet
 
 when = extraction_date()
