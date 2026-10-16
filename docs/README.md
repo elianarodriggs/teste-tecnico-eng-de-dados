@@ -16,14 +16,16 @@ Um comando só faz as três etapas, nesta ordem:
 2. **silver** — lê a bronze, tipa e separa linha quebrada
 3. **gold** — monta uma linha por solicitação
 
-Não tem script solto para rodar na mão. A entrada é `src/run_pipeline.py`.
+Não tem script solto para rodar na mão. A entrada é `src/main.py`.
 
-| Etapa | Arquivo |
+| Peça | Arquivo |
 |---|---|
-| bronze | `src/ingest.py` |
-| leitura do CSV | `src/parse_csv.py` |
-| silver | `src/build_silver.py` |
-| gold | `src/build_gold.py` e `sql/gold.sql` |
+| entrada | `src/main.py` |
+| bronze, silver e gold | `src/pipeline.py` |
+| leitura do CSV | `src/leitor.py` |
+| SeaweedFS | `src/lago.py` |
+| lista das fontes | `src/configuracao.py` |
+| SQL da gold | `sql/gold.sql` |
 | ranking na tela | `scripts/inspect_gold.py` |
 
 `sql/consultas.sql` não entra no pipeline. São as três consultas da pergunta, para rodar em cima do agregado.

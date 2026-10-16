@@ -18,4 +18,4 @@ COPY pytest.ini .
 ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 
-ENTRYPOINT ["python", "src/run_pipeline.py"]
+ENTRYPOINT ["python", "src/main.py"]

@@ -2,8 +2,8 @@ from datetime import datetime
 
 import pandas as pd
 
-from build_gold import build_analytics
-from parse_csv import parse_csv
+from leitor import LeitorCsv
+from pipeline import Pipeline
 
 
 def test_mascara_e_linha_irrecuperavel_vao_para_quarentena():
@@ -14,8 +14,8 @@ def test_mascara_e_linha_irrecuperavel_vao_para_quarentena():
         "2;TEXTO;COM;DELIMITADOR\n"
         "3;DRENAGEM\n"
     ).encode("latin-1")
-    frame, quarantine, info = parse_csv(raw)
-    assert info["mask_skipped"] is True
+    frame, quarantine, info = LeitorCsv().ler(raw)
+    assert info["mascara_ignorada"] is True
     assert list(frame["SSO_IDF"]) == ["1", "3"]
     assert quarantine.iloc[0]["reason"] == "contagem_de_campos"
 
@@ -59,7 +59,7 @@ def test_gold_nao_multiplica_solicitacao_e_mantem_quem_nao_tem_execucao():
         ]
     )
 
-    fato, agregado, checks = build_analytics(solicitacoes, servicos, executados)
+    fato, agregado, checks = Pipeline().montar(solicitacoes, servicos, executados)
     assert len(fato) == 2
     assert checks["solicitacoes_gold"] == 2
     boa = fato.set_index("SSO_IDF").loc["1"]
@@ -102,7 +102,7 @@ def test_tempo_negativo_nao_entra_na_metrica():
             }
         ]
     )
-    fato, _, checks = build_analytics(solicitacoes, servicos, executados)
+    fato, _, checks = Pipeline().montar(solicitacoes, servicos, executados)
     assert pd.isna(fato.iloc[0]["tempo_horas"])
     assert fato.iloc[0]["tempo_negativo"] == 1
     assert pd.isna(fato.iloc[0]["valor_executado"])
