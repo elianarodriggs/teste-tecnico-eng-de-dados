@@ -2,7 +2,7 @@
 
 O `README.md` da raiz é o da banca. Este aqui é o passo a passo da solução.
 
-Tudo roda na pasta do projeto. Nesta máquina o Docker pede `sudo`. O terminal precisa estar em `teste-tecnico-eng-de-dados`, não na pasta `trabalho`.
+Pasta do projeto > execução
 
 ```bash
 cd ~/me/facul-trab/trabalho/teste-tecnico-eng-de-dados
@@ -16,7 +16,7 @@ Um comando só faz as três etapas, nesta ordem:
 2. **silver** — lê a bronze, tipa e separa linha quebrada
 3. **gold** — monta uma linha por solicitação
 
-Não tem script solto para rodar na mão. A entrada é `src/main.py`.
+A entrada é `src/main.py`.
 
 | Peça | Arquivo |
 |---|---|
