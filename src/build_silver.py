@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 
 import pandas as pd
@@ -12,11 +10,11 @@ from storage import extraction_date, get_bytes, manifest, put_json, put_parquet
 logger = logging.getLogger(__name__)
 
 
-def silver_key(table: str, when: str) -> str:
+def silver_key(table, when):
     return f"silver/{table}/extraction_date={when}/data.parquet"
 
 
-def run_silver() -> dict:
+def run_silver():
     when = extraction_date()
     metrics_rows = []
     quarantine_frames = []
@@ -35,6 +33,8 @@ def run_silver() -> dict:
         frame, quarantine, parse_info = parse_csv(raw)
         rows_read = len(frame) + len(quarantine)
         frame, type_metrics = apply_types(table["name"], frame)
+
+        # chave nula sai da tabela e vai para a quarentena, com o motivo
         null_key_rows = pd.DataFrame()
         if table["primary_key"]:
             missing = frame[table["primary_key"]].isna().any(axis=1)
@@ -74,7 +74,15 @@ def run_silver() -> dict:
                 dataset_period=DATASET_PERIOD,
                 source_object=raw_key,
                 object_key=out_key,
-                **{k: v for k, v in row.items() if k != "table"},
+                rows_input=row["rows_input"],
+                rows_output=row["rows_output"],
+                rows_rejected_parse=row["rows_rejected_parse"],
+                null_keys=row["null_keys"],
+                exact_duplicates=row["exact_duplicates"],
+                divergent_duplicates=row["divergent_duplicates"],
+                null_bytes_removed=row["null_bytes_removed"],
+                invalid_dates=row["invalid_dates"],
+                invalid_numbers=row["invalid_numbers"],
             ),
         )
         logger.info("silver %s: %s linhas", table["name"], len(frame))

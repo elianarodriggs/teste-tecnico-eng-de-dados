@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 import time
 
@@ -11,12 +9,13 @@ from storage import ensure_bucket, extraction_date, manifest, put_bytes, put_jso
 logger = logging.getLogger(__name__)
 
 
-def bronze_key(table: str, when: str, filename: str) -> str:
+def bronze_key(table, when, filename):
+    # o nome do arquivo original entra no caminho, para achar o CSV de novo
     return f"bronze/{table}/extraction_date={when}/{filename}"
 
 
-def download(url: str, attempts: int = 3) -> bytes:
-    last_error: Exception | None = None
+def download(url, attempts=3):
+    last_error = None
     for attempt in range(1, attempts + 1):
         try:
             response = requests.get(url, timeout=60)
@@ -31,7 +30,7 @@ def download(url: str, attempts: int = 3) -> bytes:
     raise RuntimeError(f"não foi possível baixar {url}") from last_error
 
 
-def run_ingest() -> dict:
+def run_ingest():
     ensure_bucket()
     when = extraction_date()
     summary = {"extraction_date": when, "dataset_period": DATASET_PERIOD, "tables": {}}
@@ -42,6 +41,7 @@ def run_ingest() -> dict:
         try:
             payload = download(url)
         except Exception:
+            # as quatro do núcleo param a carga. bairro e tipo de serviço só avisam
             if table["required"]:
                 raise
             logger.exception("fonte opcional indisponível: %s", table["name"])
@@ -49,6 +49,7 @@ def run_ingest() -> dict:
             continue
 
         key = bronze_key(table["name"], when, table["file"])
+        # grava os bytes como vieram. encoding e delimitador ficam para a silver
         put_bytes(key, payload, "text/csv")
         meta = manifest(
             layer="bronze",
@@ -63,6 +64,10 @@ def run_ingest() -> dict:
             required=table["required"],
         )
         put_json(f"bronze/{table['name']}/extraction_date={when}/_manifest.json", meta)
-        summary["tables"][table["name"]] = {"bytes": len(payload), "key": key, "sha256": meta["sha256"]}
+        summary["tables"][table["name"]] = {
+            "bytes": len(payload),
+            "key": key,
+            "sha256": meta["sha256"],
+        }
 
     return summary

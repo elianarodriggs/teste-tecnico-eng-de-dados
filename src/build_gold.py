@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 from pathlib import Path
 
@@ -14,16 +12,19 @@ logger = logging.getLogger(__name__)
 SQL_PATH = Path(__file__).resolve().parents[1] / "sql" / "gold.sql"
 
 
-def _label(series: pd.Series) -> pd.Series:
+def _label(series):
+    # "Unidade Regional Boa Vista" e "UNIDADE REGIONAL BOA VISTA" viram a mesma regional
     text = series.astype("string").str.replace(r"\s+", " ", regex=True).str.strip().str.upper()
     return text.mask(text.isna() | (text == ""), "NÃO INFORMADO")
 
 
-def build_analytics(
-    solicitacoes: pd.DataFrame,
-    servicos: pd.DataFrame,
-    executados: pd.DataFrame,
-) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+def _as_text_id(frame, column):
+    # id fica texto para não perder zero à esquerda
+    frame[column] = frame[column].astype("string").str.strip()
+    frame.loc[frame[column].isin(["", "<NA>", "nan", "None"]), column] = pd.NA
+
+
+def build_analytics(solicitacoes, servicos, executados):
     sso = solicitacoes.copy()
     ser = servicos.copy()
     see = executados.copy()
@@ -34,12 +35,12 @@ def build_analytics(
         (see, "SER_IDF"),
         (see, "SEE_IDF"),
     ):
-        frame[column] = frame[column].astype("string").str.strip()
-        frame.loc[frame[column].isin(["", "<NA>", "nan", "None"]), column] = pd.NA
+        _as_text_id(frame, column)
 
     sso["regional"] = _label(sso["SSO_REGIONAL"])
     sso["assunto"] = _label(sso["SSO_ASSUNTO"])
 
+    # o SQL soma item por servico e servico por pedido antes do join
     connection = duckdb.connect()
     connection.register("servico_solicitado", sso)
     connection.register("servico", ser)
@@ -48,8 +49,6 @@ def build_analytics(
     fato = connection.execute("SELECT * FROM fato").df()
     agregado = connection.execute("SELECT * FROM agregado").df()
 
-    orphans_service = int((~ser["SSO_IDF"].isin(set(sso["SSO_IDF"].dropna()))).sum())
-    orphans_item = int((~see["SER_IDF"].isin(set(ser["SER_IDF"].dropna()))).sum())
     checks = {
         "solicitacoes_silver": int(sso["SSO_IDF"].nunique(dropna=True)),
         "solicitacoes_gold": int(fato["SSO_IDF"].nunique(dropna=True)),
@@ -57,10 +56,13 @@ def build_analytics(
         "solicitacoes_sem_execucao": int((fato["possui_execucao"] == 0).sum()),
         "tempos_negativos": int(fato["tempo_negativo"].sum()),
         "tempos_validos": int(fato["tempo_horas"].notna().sum()),
-        "servicos_sem_solicitacao": orphans_service,
-        "itens_sem_servico": orphans_item,
-        "valor_executado": None if fato["valor_executado"].isna().all() else float(fato["valor_executado"].sum()),
+        "servicos_sem_solicitacao": int((~ser["SSO_IDF"].isin(set(sso["SSO_IDF"].dropna()))).sum()),
+        "itens_sem_servico": int((~see["SER_IDF"].isin(set(ser["SER_IDF"].dropna()))).sum()),
+        "valor_executado": None
+        if fato["valor_executado"].isna().all()
+        else float(fato["valor_executado"].sum()),
     }
+    # se o join multiplicou pedido, a carga para
     if checks["linhas_gold"] != checks["solicitacoes_silver"]:
         raise RuntimeError(
             "a Gold mudou a contagem de solicitações: "
@@ -71,7 +73,7 @@ def build_analytics(
     return fato, agregado, checks
 
 
-def run_gold() -> dict:
+def run_gold():
     when = extraction_date()
     solicitacoes = read_parquet(f"silver/servico_solicitado/extraction_date={when}/data.parquet")
     servicos = read_parquet(f"silver/servico/extraction_date={when}/data.parquet")
@@ -83,21 +85,35 @@ def run_gold() -> dict:
     put_parquet(fato_key, fato)
     put_parquet(agg_key, agregado)
     put_parquet(f"gold/validacao/extraction_date={when}/data.parquet", pd.DataFrame([checks]))
-    for name, key, rows in (
-        ("fato_solicitacao", fato_key, len(fato)),
-        ("agregado_regional_assunto", agg_key, len(agregado)),
-    ):
-        put_json(
-            key.rsplit("/", 1)[0] + "/_manifest.json",
-            manifest(
-                layer="gold",
-                table=name,
-                extraction_date=when,
-                dataset_period=DATASET_PERIOD,
-                object_key=key,
-                rows=rows,
-                grain="SSO_IDF" if name == "fato_solicitacao" else "regional,assunto",
-            ),
-        )
+
+    put_json(
+        f"gold/fato_solicitacao/extraction_date={when}/_manifest.json",
+        manifest(
+            layer="gold",
+            table="fato_solicitacao",
+            extraction_date=when,
+            dataset_period=DATASET_PERIOD,
+            object_key=fato_key,
+            rows=len(fato),
+            grain="SSO_IDF",
+        ),
+    )
+    put_json(
+        f"gold/agregado_regional_assunto/extraction_date={when}/_manifest.json",
+        manifest(
+            layer="gold",
+            table="agregado_regional_assunto",
+            extraction_date=when,
+            dataset_period=DATASET_PERIOD,
+            object_key=agg_key,
+            rows=len(agregado),
+            grain="regional,assunto",
+        ),
+    )
     logger.info("gold %s", checks)
-    return {"extraction_date": when, "checks": checks, "agregado_rows": len(agregado), "tables_used": [t["name"] for t in TABLES]}
+    return {
+        "extraction_date": when,
+        "checks": checks,
+        "agregado_rows": len(agregado),
+        "tables_used": [t["name"] for t in TABLES],
+    }

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import hashlib
 import io
 import json
@@ -7,7 +5,6 @@ import logging
 import os
 import time
 from datetime import date, datetime, timezone
-from typing import Any
 
 import boto3
 import pandas as pd
@@ -17,11 +14,13 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger(__name__)
 
 
-def extraction_date() -> str:
+def extraction_date():
+    # dia da carga, no fuso do container (America/Sao_Paulo). não é 2016-09-21
     return os.environ.get("EXTRACTION_DATE") or date.today().isoformat()
 
 
 def s3_client():
+    # path style: o SeaweedFS não aceita o endereço no formato bucket.endpoint
     return boto3.client(
         "s3",
         endpoint_url=os.environ.get("S3_ENDPOINT", "http://localhost:8333"),
@@ -32,14 +31,15 @@ def s3_client():
     )
 
 
-def bucket_name() -> str:
+def bucket_name():
     return os.environ.get("S3_BUCKET", "lake")
 
 
-def ensure_bucket(attempts: int = 15):
+def ensure_bucket(attempts=15):
+    # o Seaweed demora uns segundos para aceitar o bucket depois do compose up
     client = s3_client()
     name = bucket_name()
-    last_error: Exception | None = None
+    last_error = None
     for attempt in range(1, attempts + 1):
         try:
             try:
@@ -52,38 +52,38 @@ def ensure_bucket(attempts: int = 15):
             last_error = exc
             logger.warning("storage indisponível (%s); tentativa %s/%s", exc, attempt, attempts)
             time.sleep(2)
-    raise RuntimeError("não foi possível acessar o storage S3") from last_error
+    raise RuntimeError("não foi possível acessar o SeaweedFS") from last_error
 
 
-def put_bytes(key: str, payload: bytes, content_type: str) -> None:
+def put_bytes(key, payload, content_type):
     s3_client().put_object(Bucket=bucket_name(), Key=key, Body=payload, ContentType=content_type)
 
 
-def put_json(key: str, payload: dict[str, Any]) -> None:
+def put_json(key, payload):
     body = json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode("utf-8")
     put_bytes(key, body, "application/json")
 
 
-def get_bytes(key: str) -> bytes:
+def get_bytes(key):
     response = s3_client().get_object(Bucket=bucket_name(), Key=key)
     return response["Body"].read()
 
 
-def put_parquet(key: str, frame: pd.DataFrame) -> None:
+def put_parquet(key, frame):
     buffer = io.BytesIO()
     frame.to_parquet(buffer, index=False)
     put_bytes(key, buffer.getvalue(), "application/octet-stream")
 
 
-def read_parquet(key: str) -> pd.DataFrame:
+def read_parquet(key):
     return pd.read_parquet(io.BytesIO(get_bytes(key)))
 
 
-def sha256(payload: bytes) -> str:
+def sha256(payload):
     return hashlib.sha256(payload).hexdigest()
 
 
-def manifest(**fields: Any) -> dict[str, Any]:
+def manifest(**fields):
     payload = {"extracted_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat()}
     payload.update(fields)
     return payload
