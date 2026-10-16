@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import pandas as pd
 
 from sources import DATE_COLUMNS, NUMBER_COLUMNS
@@ -7,17 +5,14 @@ from sources import DATE_COLUMNS, NUMBER_COLUMNS
 DELIMITER = ";"
 
 
-def _is_mask(line: str) -> bool:
+def _is_mask(line):
+    # a segunda linha do CSV e so tracos: --------;--------
     compact = line.replace(DELIMITER, "").strip()
     return bool(compact) and set(compact) <= {"-"}
 
 
-def parse_csv(raw: bytes) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
-    """Lê o CSV do SIGMU.
-
-    A Bronze guarda os bytes originais. Aqui a linha de máscara é ignorada
-    e a linha cuja contagem de campos não fecha vai para quarentena.
-    """
+def parse_csv(raw):
+    # a Bronze guarda o arquivo inteiro. aqui eu só separo o que dá para ler
     null_bytes = raw.count(b"\x00")
     text = raw.decode("latin-1").replace("\x00", "")
     lines = text.splitlines()
@@ -28,14 +23,17 @@ def parse_csv(raw: bytes) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     expected = len(header)
     start = 2 if len(lines) > 1 and _is_mask(lines[1]) else 1
 
-    rows: list[list[str]] = []
-    rejected: list[dict] = []
+    rows = []
+    rejected = []
     for index, line in enumerate(lines[start:], start=start + 1):
         if not line.strip():
             rejected.append({"line_number": index, "reason": "linha_vazia", "raw_line": line})
             continue
+        # ponto e vírgula solto no texto quebra a contagem. não invento coluna
         if line.count(DELIMITER) != expected - 1:
-            rejected.append({"line_number": index, "reason": "contagem_de_campos", "raw_line": line[:500]})
+            rejected.append(
+                {"line_number": index, "reason": "contagem_de_campos", "raw_line": line[:500]}
+            )
             continue
         rows.append(line.split(DELIMITER))
 
@@ -45,7 +43,8 @@ def parse_csv(raw: bytes) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     return frame, quarantine, info
 
 
-def blank_to_null(frame: pd.DataFrame) -> pd.DataFrame:
+def blank_to_null(frame):
+    # vazio vira nulo. nulo não vira zero
     cleaned = frame.copy()
     for column in cleaned.columns:
         text = cleaned[column].astype("string").str.strip()
@@ -53,17 +52,22 @@ def blank_to_null(frame: pd.DataFrame) -> pd.DataFrame:
     return cleaned
 
 
-def parse_number(series: pd.Series) -> tuple[pd.Series, int]:
+def parse_number(series):
+    # neste recorte o decimal e ponto, como em 2.03.
+    # se aparecer virgula, trato como decimal e tiro o ponto de milhar
     text = series.astype("string").str.strip()
     text = text.mask(text == "", pd.NA)
     has_comma = text.str.contains(",", na=False)
-    normalized = text.where(~has_comma, text.str.replace(".", "", regex=False).str.replace(",", ".", regex=False))
+    normalized = text.where(
+        ~has_comma,
+        text.str.replace(".", "", regex=False).str.replace(",", ".", regex=False),
+    )
     number = pd.to_numeric(normalized, errors="coerce")
     invalid = int((text.notna() & number.isna()).sum())
     return number, invalid
 
 
-def apply_types(table: str, frame: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+def apply_types(table, frame):
     typed = blank_to_null(frame)
     metrics = {"invalid_dates": {}, "invalid_numbers": {}}
     for column in DATE_COLUMNS.get(table, []):
@@ -71,9 +75,8 @@ def apply_types(table: str, frame: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
             continue
         original = typed[column]
         parsed = pd.to_datetime(original, errors="coerce")
-        invalid = int((original.notna() & parsed.isna()).sum())
+        metrics["invalid_dates"][column] = int((original.notna() & parsed.isna()).sum())
         typed[column] = parsed
-        metrics["invalid_dates"][column] = invalid
     for column in NUMBER_COLUMNS.get(table, []):
         if column not in typed.columns:
             continue
@@ -83,7 +86,8 @@ def apply_types(table: str, frame: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     return typed, metrics
 
 
-def deduplicate(frame: pd.DataFrame, primary_key: list[str]) -> tuple[pd.DataFrame, dict]:
+def deduplicate(frame, primary_key):
+    # duplicata igual sai. mesma chave com conteudo diferente: fica a primeira e eu conto
     metrics = {"null_keys": 0, "exact_duplicates": 0, "divergent_duplicates": 0}
     if not primary_key or any(column not in frame.columns for column in primary_key):
         return frame, metrics
@@ -91,9 +95,11 @@ def deduplicate(frame: pd.DataFrame, primary_key: list[str]) -> tuple[pd.DataFra
     null_key = frame[primary_key].isna().any(axis=1)
     metrics["null_keys"] = int(null_key.sum())
     keyed = frame.loc[~null_key].copy()
+
     exact = keyed.duplicated(keep="first")
     metrics["exact_duplicates"] = int(exact.sum())
     keyed = keyed.loc[~exact]
+
     key_dup = keyed.duplicated(subset=primary_key, keep=False)
     metrics["divergent_duplicates"] = int(keyed.loc[key_dup, primary_key].drop_duplicates().shape[0])
     keyed = keyed.drop_duplicates(subset=primary_key, keep="first")
