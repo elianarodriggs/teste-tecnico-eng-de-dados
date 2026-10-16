@@ -49,7 +49,7 @@ Abertura, 30 segundos.
 
 Obrigado. Vou mostrar um pipeline pequeno do SIGMU, o sistema de manutenção urbana de Curitiba, organizado em medalhão: Bronze, Silver e Gold.
 
-O desenho segue o mesmo contrato que a gente usa em GCP. A camada raw aterrissa o arquivo sem regra de negócio. A camada curated tipa e conforma. A Gold é o consumo, e um DAG em Python garante a ordem. O storage daqui é local, compatível com S3. O contrato das camadas é o que importa, não o produto.
+O desenho segue o contrato medalhão: a Bronze aterrissa o arquivo sem regra de negócio, a Silver tipa e a Gold responde a pergunta. A ordem é um comando só: bronze, depois silver, depois gold. O storage daqui é local, compatível com S3.
 
 O recorte é o espelho público do C3SL de 21 de setembro de 2016. No final eu respondo a pergunta de negócio com três concentrações diferentes: volume, tempo e valor não caem no mesmo lugar.
 -->
@@ -186,31 +186,31 @@ O risco é outro, e eu mostro daqui a pouco: serviço de 2007 apontando para sol
 
 | Na plataforma | Neste repositório |
 |---|---|
-| Declarações da camada raw | `definitions/sources.yaml` |
-| Modelos curated | `jobs/silver.py` → Parquet |
-| Modelo de consumo | `jobs/gold.py` |
-| DAG Python do orquestrador | `landing_bronze >> curated_silver >> consumo_gold` |
-| Bucket de objetos / tabela analítica | SeaweedFS `lake` / Parquet |
+| Landing da raw, sem regra | `jobs/bronze.py` |
+| Curadoria no grão da origem | `jobs/silver.py` |
+| Consumo analítico | `jobs/gold.py` |
+| Ordem da carga | `pipeline all`: bronze, silver, gold |
+| Bucket / tabela analítica | SeaweedFS `lake` / Parquet |
 
 <!--
 3 minutos. Este é o slide central. Falar devagar.
 
 No GCP a gente separa três responsabilidades, mesmo quando o motor é SQL.
 
-A raw declara a fonte e aterrissa o arquivo. Não interpreta coluna e não aplica regra de negócio. Se o arquivo de origem mudar, a raw muda junto, e a curated é que quebra de forma visível. Aqui isso é o YAML de fontes mais o job de Bronze: URL, recorte, e o CSV byte a byte.
+A raw aterrissa o arquivo. Não interpreta coluna e não aplica regra de negócio. Aqui isso é o job de Bronze: URL, recorte e o CSV byte a byte. A lista das seis tabelas está em `config.py`.
 
 A curated é o modelo limpo, ainda uma linha por registro de origem. Tipo, nulo, chave, deduplicação. É a Silver. Ela não responde "qual regional demora mais". Ela deixa o join possível.
 
-A Gold é consumo. No mesmo fluxo da curated, como último modelo, com outro grão. Fato por solicitação, agregado por regional e assunto. A regra de tempo mora aqui, não na raw.
+A Gold é consumo, com outro grão. Fato por solicitação, agregado por regional e assunto. A regra de tempo mora aqui, não na Bronze.
 
-Quem amarra a ordem é o DAG em Python: landing, curated, consumo. Se a Bronze falha, a Silver não roda. É o mesmo desenho de um pipeline orquestrado: tarefa com dependência, falha visível, reprocessamento da partição.
+A ordem é o comando `all`: se a Bronze falha, a Silver não roda. O log mostra a etapa que quebrou. Reprocessar é rodar de novo a mesma partição.
 
 O que muda neste teste é o runtime, não o contrato. No lugar do bucket gerenciado, SeaweedFS. No lugar da tabela analítica, Parquet. O prefixo bronze, silver, gold e a partição snapshot_date são o contrato do lake.
 -->
 
 ---
 
-## Contrato do lake e do DAG
+## Contrato do lake
 
 ```text
 lake/bronze/{tabela}/snapshot_date=2016-09-21/data.csv
@@ -233,7 +233,7 @@ O manifesto é a linhagem mínima: de onde veio, quando extraiu, hash na Bronze,
 
 Idempotência é por sobrescrita. A segunda execução, que eu rodei de ponta a ponta, devolveu os mesmos 50.017 pedidos e as mesmas 195 linhas no agregado. Não duplica arquivo e não duplica métrica.
 
-O DAG tem três tarefas com esse nome de propósito: landing_bronze, curated_silver, consumo_gold. Dá para agendar isso sem mudar o job.
+A ordem das etapas está no comando `all`. Dá para agendar esse mesmo comando sem mudar o job.
 -->
 
 ---
@@ -409,7 +409,7 @@ Quantidade. O total de 25 milhões mistura unidade de medida. Eu guardo a coluna
 2. Mesma partição, mesma chave, novo `extracted_at_utc`
 3. Contagens idênticas na segunda execução: **50.017** pedidos, **195** linhas no agregado
 
-Falha no meio do DAG interrompe a sequência. O log marca `task start` e `task success`.
+Falha numa etapa interrompe as seguintes. O log marca a etapa que quebrou.
 
 Testes do contrato: parser, caminho da partição, soma de vários serviços, pedido sem execução, tempo negativo fora da métrica. **5 testes, no container.**
 
@@ -427,7 +427,7 @@ Se a regra de valor mudar, o teste quebra antes de eu reprocessar os 700 mil ite
 
 ## Trade-off e o próximo passo no mesmo desenho
 
-**Agora:** um container, uma partição, Parquet, manifesto, DAG linear.
+**Agora:** um container, uma partição, Parquet e manifesto. A ordem é bronze, silver, gold.
 **Deixei de fora:** scheduler, teste bloqueante, histórico de snapshots, painel.
 
 | Evolução | Onde entra |
@@ -435,7 +435,7 @@ Se a regra de valor mudar, o teste quebra antes de eu reprocessar os 700 mil ite
 | Assertion de chave e de órfão, com limite | modelo curated, antes de publicar a Gold |
 | Partição por data de extração | raw, sem sobrescrever o snapshot |
 | Tabela externa na Silver, nativa na Gold | consumo |
-| Agendar o mesmo DAG | orquestrador |
+| Agendar o comando `all` | orquestrador |
 | Alerta se o cabeçalho do C3SL mudar | raw / contrato da fonte |
 
 <!--
@@ -445,7 +445,7 @@ O trade-off foi profundidade no núcleo, não mais ferramenta. SQL de consumo es
 
 O que eu faria em seguida, sem trocar a arquitetura: teste de relacionamento que falha a publicação se o órfão passar de um limite. Hoje ele é contado e a carga segue. Para um indicador oficial, 92% de serviço sem solicitação deveria segurar a Gold.
 
-Depois, partição por extração, para não apagar o snapshot anterior. Tabela externa em cima do Parquet da Silver e tabela nativa para o agregado, que é pequeno, 195 linhas. O DAG que já existe é o que o scheduler chamaria. E um alerta de schema na raw, porque o parser depende da ordem e da contagem de colunas do cabeçalho.
+Depois, partição por extração, para não apagar o snapshot anterior. Tabela externa em cima do Parquet da Silver e tabela nativa para o agregado, que é pequeno, 195 linhas. O comando `all` é o que o scheduler chamaria. E um alerta de schema na raw, porque o parser depende da ordem e da contagem de colunas do cabeçalho.
 
 Enriquecer com TIPO_SERVICO só quando existir chave. Até lá, assunto é o tipo.
 -->
