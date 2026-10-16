@@ -1,8 +1,3 @@
--- Uma linha por pedido (SSO_IDF).
--- Soma os itens do servico, depois os servicos do pedido, e so entao junta no pedido.
--- Se juntasse o item direto no pedido, um pedido com 3 itens viraria 3 linhas.
--- Valor vazio continua vazio. Não viro zero.
-
 CREATE OR REPLACE TABLE item_por_servico AS
 SELECT
     SER_IDF,
@@ -60,7 +55,6 @@ SELECT
     e.valor_executado,
     COALESCE(e.itens_sem_valor, 0) AS itens_sem_valor,
     CASE WHEN e.SSO_IDF IS NULL THEN 0 ELSE 1 END AS possui_execucao,
-    -- execução anterior à abertura não entra na média. fica só nesta flag
     CASE
         WHEN e.primeira_execucao IS NOT NULL
          AND o.SSO_DATA_SOLICITACAO IS NOT NULL

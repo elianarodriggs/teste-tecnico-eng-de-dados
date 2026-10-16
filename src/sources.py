@@ -1,11 +1,6 @@
-# Recorte publico do SIGMU em 21/09/2016.
-# Essa data é o período do arquivo. A pasta extraction_date é o dia em que o pipeline roda.
-
 DATASET_PERIOD = "2016-09-21"
 BASE_URL = "https://dadosabertos.c3sl.ufpr.br/curitiba/SIGMU/"
 
-# required=True: se o download falhar, a carga para.
-# Bairro e tipo de serviço são opcionais. TIPO_SERVICO não liga no pedido.
 TABLES = [
     {
         "name": "servico_solicitado",
@@ -17,7 +12,6 @@ TABLES = [
         "name": "situacao_solicitacao",
         "file": "2016-09-21_Sigmu_-_SITUACAO_SOLICITACAO_-_Base_de_Dados.csv",
         "required": True,
-        # histórico: várias linhas por pedido. não tem uma chave única
         "primary_key": [],
     },
     {

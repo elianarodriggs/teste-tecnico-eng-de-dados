@@ -34,7 +34,6 @@ def run_silver():
         rows_read = len(frame) + len(quarantine)
         frame, type_metrics = apply_types(table["name"], frame)
 
-        # chave nula sai da tabela e vai para a quarentena, com o motivo
         null_key_rows = pd.DataFrame()
         if table["primary_key"]:
             missing = frame[table["primary_key"]].isna().any(axis=1)

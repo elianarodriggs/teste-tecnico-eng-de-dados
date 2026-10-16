@@ -13,13 +13,11 @@ SQL_PATH = Path(__file__).resolve().parents[1] / "sql" / "gold.sql"
 
 
 def _label(series):
-    # "Unidade Regional Boa Vista" e "UNIDADE REGIONAL BOA VISTA" viram a mesma regional
     text = series.astype("string").str.replace(r"\s+", " ", regex=True).str.strip().str.upper()
     return text.mask(text.isna() | (text == ""), "NÃO INFORMADO")
 
 
 def _as_text_id(frame, column):
-    # id fica texto para não perder zero à esquerda
     frame[column] = frame[column].astype("string").str.strip()
     frame.loc[frame[column].isin(["", "<NA>", "nan", "None"]), column] = pd.NA
 
@@ -40,7 +38,6 @@ def build_analytics(solicitacoes, servicos, executados):
     sso["regional"] = _label(sso["SSO_REGIONAL"])
     sso["assunto"] = _label(sso["SSO_ASSUNTO"])
 
-    # o SQL soma item por servico e servico por pedido antes do join
     connection = duckdb.connect()
     connection.register("servico_solicitado", sso)
     connection.register("servico", ser)
@@ -62,7 +59,6 @@ def build_analytics(solicitacoes, servicos, executados):
         if fato["valor_executado"].isna().all()
         else float(fato["valor_executado"].sum()),
     }
-    # se o join multiplicou pedido, a carga para
     if checks["linhas_gold"] != checks["solicitacoes_silver"]:
         raise RuntimeError(
             "a Gold mudou a contagem de solicitações: "

@@ -15,12 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 def extraction_date():
-    # dia da carga, no fuso do container (America/Sao_Paulo). não é 2016-09-21
     return os.environ.get("EXTRACTION_DATE") or date.today().isoformat()
 
 
 def s3_client():
-    # path style: o SeaweedFS não aceita o endereço no formato bucket.endpoint
     return boto3.client(
         "s3",
         endpoint_url=os.environ.get("S3_ENDPOINT", "http://localhost:8333"),
@@ -36,7 +34,6 @@ def bucket_name():
 
 
 def ensure_bucket(attempts=15):
-    # o Seaweed demora uns segundos para aceitar o bucket depois do compose up
     client = s3_client()
     name = bucket_name()
     last_error = None

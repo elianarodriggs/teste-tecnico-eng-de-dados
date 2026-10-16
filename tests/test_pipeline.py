@@ -60,7 +60,6 @@ def test_gold_nao_multiplica_solicitacao_e_mantem_quem_nao_tem_execucao():
     )
 
     fato, agregado, checks = build_analytics(solicitacoes, servicos, executados)
-    # pedido 1 tem dois servicos e tres itens, e continua uma linha. valor 10 + 7 + 1
     assert len(fato) == 2
     assert checks["solicitacoes_gold"] == 2
     boa = fato.set_index("SSO_IDF").loc["1"]

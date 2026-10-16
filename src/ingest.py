@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 def bronze_key(table, when, filename):
-    # o nome do arquivo original entra no caminho, para achar o CSV de novo
     return f"bronze/{table}/extraction_date={when}/{filename}"
 
 
@@ -41,7 +40,6 @@ def run_ingest():
         try:
             payload = download(url)
         except Exception:
-            # as quatro do núcleo param a carga. bairro e tipo de serviço só avisam
             if table["required"]:
                 raise
             logger.exception("fonte opcional indisponível: %s", table["name"])
@@ -49,7 +47,6 @@ def run_ingest():
             continue
 
         key = bronze_key(table["name"], when, table["file"])
-        # grava os bytes como vieram. encoding e delimitador ficam para a silver
         put_bytes(key, payload, "text/csv")
         meta = manifest(
             layer="bronze",

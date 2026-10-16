@@ -1,6 +1,3 @@
--- Consultas da pergunta de negócio. Rodam sobre a tabela agregado,
--- já no grão regional × assunto.
-
 -- Maior volume
 SELECT regional, assunto, volume_solicitacoes, pct_sem_execucao
 FROM agregado
