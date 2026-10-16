@@ -23,6 +23,8 @@ th { background: #0e3a5d; color: white; }
 # Pipeline SIGMU
 ## Manutenção urbana de Curitiba
 
+Quais regiões e tipos de pedido concentram volume, tempo e valor?
+
 Recorte de 21/09/2016 · defesa de cerca de 20 minutos
 
 <!--
@@ -141,6 +143,8 @@ Boa Vista é um quinto dos pedidos e quase não tem serviço ligado neste recort
 </div>
 
 Valor por regional: Bairro Novo R$ 5,0 mi, Portão R$ 4,0 mi. Boa Vista, líder de volume, tem R$ 60 mil.
+
+**310 mil serviços (92%)** apontam para um pedido que não está neste arquivo. Ficam de fora do fato e entram na validação.
 
 <!--
 Os outros dois minutos.
