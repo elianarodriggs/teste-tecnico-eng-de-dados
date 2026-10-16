@@ -1,47 +1,35 @@
 # Solução — Pipeline SIGMU
 
-Pipeline em três camadas no bucket `lake`. A Bronze guarda o CSV original. A Silver tipa e limpa. A Gold responde a pergunta de negócio.
+O pipeline baixa o recorte público do SIGMU, guarda o arquivo original e produz uma visão por regional e assunto. A pergunta é: quais tipos de serviço e regiões concentram maior volume, maior tempo de atendimento e maior valor executado.
 
 ```text
-C3SL (CSV, 2016-09-21)
+C3SL  CSV 2016-09-21
         |
         v
-     bronze          CSV original + manifesto
+     bronze     arquivo original + manifesto
         |
         v
-     silver          Parquet tipado
+     silver     Parquet tipado + quarentena
         |
         v
-      gold           1 linha por solicitação
-                     agregado por regional e assunto
+      gold      1 linha por solicitação
+                agregado regional × assunto
 ```
 
 ```text
 SERVICO_SOLICITADO 1 ──< N SERVICO 1 ──< N SERVICO_EXECUTADO
 ```
 
-O código fica em `src/sigmu_pipeline/jobs/`. A ordem de execução é `bronze`, depois `silver`, depois `gold`.
+## Como executar
 
-## Subir o ambiente
-
-Na raiz deste repositório:
+Na raiz do repositório. Nesta máquina os comandos Docker usam `sudo`.
 
 ```bash
 cp .env.example .env
-docker compose up -d
-```
-
-S3 em `http://localhost:8333`. Filer em `http://localhost:8888`. Master em `http://localhost:9333`.
-
-Ajustes locais: o `docker-compose.yml` tem o serviço `pipeline`, que fala com o storage em `http://seaweedfs:8333`. Nesta rede o TLS é interceptado, então o build usa `--trusted-host` no pip e o container monta o bundle de CAs da máquina. Nesta máquina os comandos Docker precisam de `sudo`.
-
-## Executar
-
-```bash
+sudo docker compose up -d
 sudo docker compose --profile pipeline run --rm pipeline all
+sudo docker compose --profile pipeline run --rm --no-deps --entrypoint python pipeline /app/scripts/inspect_gold.py
 ```
-
-Etapas separadas: `bronze`, `silver` ou `gold` no lugar de `all`.
 
 Testes:
 
@@ -49,65 +37,52 @@ Testes:
 sudo docker compose --profile pipeline run --rm --entrypoint pytest pipeline -q
 ```
 
-Ranking da Gold:
+S3: `http://localhost:8333`. Filer: `http://localhost:8888`. Master: `http://localhost:9333`.
 
-```bash
-sudo docker compose --profile pipeline run --rm --no-deps --entrypoint python pipeline /app/scripts/inspect_gold.py
-```
-
-A consulta equivalente está em `scripts/consulta_gold.sql`. A apresentação está em `docs/apresentacao.pdf`.
+O serviço `pipeline` fala com o storage em `http://seaweedfs:8333`, porque `localhost` dentro do container não é a máquina. O build usa `--trusted-host` e monta o bundle de CAs desta rede. O relógio do container é `America/Sao_Paulo`.
 
 ## Onde estão os dados
 
-Partição `snapshot_date=2016-09-21`.
+Bucket `lake`. A partição é a data da execução, não o período do arquivo.
 
-| Camada | Caminho | Conteúdo |
-|---|---|---|
-| Bronze | `bronze/{tabela}/snapshot_date=2016-09-21/data.csv` | CSV original |
-| Silver | `silver/{tabela}/snapshot_date=2016-09-21/data.parquet` | Tabela tipada |
-| Gold | `gold/fato_solicitacao_execucao/.../data.parquet` | 1 linha por `SSO_IDF` |
-| Gold | `gold/agregado_regional_assunto/.../data.parquet` | regional × assunto |
-| Gold | `gold/qualidade_integracao/.../data.parquet` | órfãos e tempos inválidos |
-
-Cada prefixo tem `_manifest.json` (origem, data da extração, contagens) e `_SUCCESS`.
-
-Tabelas: `servico_solicitado`, `servico`, `servico_executado`, `situacao_solicitacao`, `gtmbaibaibairro`, `tipo_servico`.
-
-## Decisões
-
-| Tema | Escolha |
+| Camada | Caminho |
 |---|---|
-| Leitura | Latin-1, delimitador `;`, linha de máscara ignorada |
-| Linha com `;` a mais ou a menos | Descartada e contada no manifesto da Silver. Foram 3 linhas no recorte |
-| Bronze | Bytes originais, sem tipo |
-| Chave | Dedup por `SSO_IDF`, `SER_IDF`, `SEE_IDF`. Situação não tem chave: é histórico |
-| Grão da Gold | 1 solicitação. Vários serviços somam quantidade e valor |
-| Tipo de serviço | `SSO_ASSUNTO`. `TIPO_SERVICO` não tem chave compatível e fica só na Silver |
-| Região | `SSO_REGIONAL`, em maiúsculas, para unir a mesma regional escrita de dois jeitos |
-| Tempo | Horas até a primeira execução. Sem data de execução, usa a data de realização. Data anterior à abertura fica de fora |
-| Sem execução | A solicitação permanece no fato, com tempo nulo |
-| Valor | `SEE_VALOR_TOTAL`. Se vier vazio e houver quantidade e valor unitário, usa o produto |
-| Órfão | Serviço sem solicitação deste recorte não entra no fato. A contagem fica em `qualidade_integracao` |
-| Reexecução | A mesma partição é sobrescrita. A segunda rodada repetiu 50.017 solicitações |
+| Bronze | `bronze/{tabela}/extraction_date=AAAA-MM-DD/{nome original}.csv` |
+| Silver | `silver/{tabela}/extraction_date=AAAA-MM-DD/data.parquet` |
+| Qualidade | `silver/_quality/extraction_date=AAAA-MM-DD/metrics.parquet` e `quarentena.parquet` |
+| Gold | `gold/fato_solicitacao/.../data.parquet` |
+| Gold | `gold/agregado_regional_assunto/.../data.parquet` |
+
+O manifesto de cada objeto traz URL, data de extração, período do dataset (`2016-09-21`), tamanho e sha256.
+
+Nesta execução a extração ficou em `extraction_date=2026-10-15`. Uma carga anterior, com o relógio do container em UTC, deixou a partição `2026-10-16`. Os totais de negócio das duas são os mesmos. A de `2026-10-15` também trouxe `tipo_servico` (12 linhas).
 
 ## Resultado
 
-- Volume: Boa Vista, 10.655 solicitações. Assunto mais frequente: pavimentação alternativa / antipó, 11.374.
-- Tempo: 9.088 durações válidas. As medianas mais longas, com amostra, estão na Boa Vista (cerca de 40 a 60 dias).
-- Valor: manutenção corretiva de pavimentação, R$ 7,8 milhões, concentrada em Bairro Novo, Portão e Santa Felicidade. Nesse grupo quase não há tempo válido.
+A Gold tem 50.017 solicitações, o mesmo total da Silver. O join não duplicou pedido.
 
-`OSO_IDF` está preenchido em todas as linhas e só tem seis códigos. Não serve como número de ordem.
+- Volume: Boa Vista, 10.655 pedidos (88% sem serviço ligado). Assunto mais frequente: pavimentação alternativa / antipó, 11.374.
+- Tempo: 9.088 durações válidas. A mediana mais longa com amostra está em drenagem na Boa Vista, cerca de 59 dias.
+- Valor: R$ 13,5 milhões. Manutenção corretiva de pavimentação concentra R$ 7,8 milhões, sobretudo Bairro Novo e Portão. Nesse grupo quase não há tempo válido.
+
+As consultas estão em `sql/consultas.sql`. A apresentação está em `docs/apresentacao.pdf`.
+
+## Reexecução
+
+Rodar de novo no mesmo dia sobrescreve a mesma chave `extraction_date`. Não acumula linha nem arquivo. Duas execuções em `2026-10-15` devolveram os mesmos totais e o mesmo sha256 de cada CSV. Uma etapa obrigatória que falha interrompe as seguintes.
 
 ## Limitações
 
-- 92% dos serviços não encontram solicitação neste recorte. A carga segue e o número fica registrado.
-- Quantidade soma unidades diferentes. Não entra no ranking entre assuntos.
-- Um único snapshot. Sem scheduler.
-- `SITUACAO_SOLICITACAO` não entra na métrica. `SIT_IDF_ATUAL` fica no fato para uma análise posterior.
+- 92% dos serviços não encontram solicitação neste recorte. O fato não os inclui. A contagem está na validação da Gold.
+- `TIPO_SERVICO` não tem chave para o pedido. O tipo usado é `SSO_ASSUNTO`.
+- Quantidade soma unidades diferentes e não entra no ranking.
+- `SITUACAO_SOLICITACAO` é histórico e não entra na métrica. `SIT_IDF_ATUAL` fica no fato.
+- `OSO_IDF` está preenchido em todas as linhas e só tem seis códigos.
 
 ## Próximos passos
 
-- Falhar a publicação da Gold se o percentual de órfãos passar de um limite.
-- Guardar mais de um snapshot, em vez de sobrescrever o recorte.
-- Painel em cima de `agregado_regional_assunto`.
-- Só cruzar `TIPO_SERVICO` quando existir chave de verdade.
+- Segurar a Gold se o percentual de serviço sem solicitação passar de um limite.
+- Guardar o histórico de extrações em vez de olhar só o dia corrente.
+- Painel sobre `agregado_regional_assunto`.
+
+As regras estão em `docs/decisoes.md`.

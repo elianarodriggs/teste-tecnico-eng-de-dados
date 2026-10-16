@@ -1,47 +1,22 @@
-"""Mostra o ranking da Gold e o quadro de integração."""
+"""Mostra o ranking da Gold da extração do dia."""
 
-from __future__ import annotations
+from storage import extraction_date, read_parquet
 
-from sigmu_pipeline.config import load_config, object_prefix
-from sigmu_pipeline.io import read_parquet
-
-
-def main() -> None:
-    cfg = load_config()
-    snapshot = cfg.snapshot_date
-    agregado = read_parquet(
-        cfg.s3, f"{object_prefix('gold', 'agregado_regional_assunto', snapshot)}/data.parquet"
-    )
-    qualidade = read_parquet(
-        cfg.s3, f"{object_prefix('gold', 'qualidade_integracao', snapshot)}/data.parquet"
-    )
-
-    print("=== qualidade de integração ===")
-    print(qualidade.T.to_string(header=False))
-    print()
-    colunas = [
-        "regional",
-        "assunto",
-        "volume_solicitacoes",
-        "tempo_amostras",
-        "tempo_mediano_horas",
-        "valor_total_executado",
-        "pct_sem_execucao",
-        "pct_sem_oso",
-    ]
-    print("=== maior volume (regional x assunto) ===")
-    print(agregado[colunas].head(15).to_string(index=False))
-    print()
-    print("=== maior valor executado ===")
-    por_valor = agregado.sort_values("valor_total_executado", ascending=False)
-    print(por_valor[colunas].head(10).to_string(index=False))
-    print()
-    print("=== maior tempo mediano (com pelo menos 30 durações válidas) ===")
-    relevantes = agregado[agregado["tempo_amostras"] >= 30].sort_values(
-        "tempo_mediano_horas", ascending=False
-    )
-    print(relevantes[colunas].head(10).to_string(index=False))
-
-
-if __name__ == "__main__":
-    main()
+when = extraction_date()
+agregado = read_parquet(f"gold/agregado_regional_assunto/extraction_date={when}/data.parquet")
+validacao = read_parquet(f"gold/validacao/extraction_date={when}/data.parquet")
+print("extração", when)
+print(validacao.T.to_string(header=False))
+print()
+colunas = [
+    "regional",
+    "assunto",
+    "volume_solicitacoes",
+    "tempos_validos",
+    "tempo_mediano_horas",
+    "valor_executado",
+    "pct_sem_execucao",
+]
+print(agregado[colunas].head(12).to_string(index=False))
+print()
+print(agregado.sort_values("valor_executado", ascending=False)[colunas].head(8).to_string(index=False))

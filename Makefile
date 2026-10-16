@@ -1,4 +1,4 @@
-.PHONY: up down pipeline test inspect
+.PHONY: up down pipeline test
 
 up:
 	docker compose up -d
