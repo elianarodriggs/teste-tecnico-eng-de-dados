@@ -15,12 +15,6 @@ Quais regiões e tipos de pedido concentram volume, tempo e valor?
 
 Recorte de 21/09/2016 · defesa de cerca de 20 minutos
 
-<!--
-Dois minutos de abertura, junto com o próximo slide.
-
-Os dados são públicos, do SIGMU. A pergunta é quais tipos de serviço e quais regiões concentram mais pedidos, mais tempo de atendimento e mais valor executado. Separei as três métricas de propósito: elas não descrevem as mesmas linhas.
--->
-
 ---
 
 ## Roteiro
@@ -48,12 +42,6 @@ Núcleo: solicitação, situação, serviço e item executado. Bairro e tipo de 
 
 `SERVICO.SSO_IDF` liga no pedido. `SERVICO_EXECUTADO.SER_IDF` liga no serviço. Situação é histórico, não domínio.
 
-<!--
-Três minutos.
-
-Não reparei linha quebrada. Ela vai para silver/_quality, com o motivo. O arquivo original continua inteiro na Bronze. A situação tem várias linhas por pedido ao longo do tempo, então não usei essa tabela para classificar o pedido. A situação atual já está na própria solicitação.
--->
-
 ---
 
 ## Arquitetura
@@ -73,12 +61,6 @@ CSV         original    Parquet     1 linha por solicitação
 
 A partição é `extraction_date`, o dia da carga. O período do arquivo continua `2016-09-21`.
 
-<!--
-Três minutos.
-
-Bronze não interpreta coluna. Silver mede o que foi descartado. Gold é SQL, e os itens são somados antes do join com o pedido. Tudo roda com docker compose. O storage é o SeaweedFS que a banca entregou.
--->
-
 ---
 
 ## Regras que mudam o número
@@ -91,12 +73,6 @@ Bronze não interpreta coluna. Silver mede o que foi descartado. Gold é SQL, e 
 - Tipo da dimensão `TIPO_SERVICO` não tem chave. O tipo usado é `SSO_ASSUNTO`.
 
 A carga para se a Gold tiver mais linhas do que solicitações na Silver.
-
-<!--
-Quatro minutos.
-
-Esse é o ponto de confiabilidade. Se eu juntasse item com pedido sem agregar antes, o valor de um pedido com três itens seria contado três vezes na hora de contar pedido. O teste cobre isso: dois serviços no mesmo pedido continuam sendo uma solicitação, e o valor soma 18. Pedido sem serviço continua na tabela, com valor nulo.
--->
 
 ---
 
@@ -114,12 +90,6 @@ Esse é o ponto de confiabilidade. Se eu juntasse item com pedido sem agregar an
 
 Assunto com mais pedidos: **pavimentação alternativa / antipó, 11.374**.
 
-<!--
-Dois dos quatro minutos de resultado.
-
-Boa Vista é um quinto dos pedidos e quase não tem serviço ligado neste recorte. Antipó é o assunto mais comum na cidade. Volume alto aqui não significa valor alto.
--->
-
 ---
 
 ## Resultado — tempo e valor
@@ -133,12 +103,6 @@ Boa Vista é um quinto dos pedidos e quase não tem serviço ligado neste recort
 Valor por regional: Bairro Novo R$ 5,0 mi, Portão R$ 4,0 mi. Boa Vista, líder de volume, tem R$ 60 mil.
 
 **310 mil serviços (92%)** apontam para um pedido que não está neste arquivo. Ficam de fora do fato e entram na validação.
-
-<!--
-Os outros dois minutos.
-
-O valor mora em manutenção corretiva, em Bairro Novo e Portão. O tempo longo mora na Boa Vista, e só entre os pedidos com data consistente. Não dá para publicar um ranking único. 310 mil serviços, 92%, apontam para solicitação que não está neste arquivo. Eles não entram no fato e estão contados na validação.
--->
 
 ---
 
@@ -155,9 +119,3 @@ Antes de um indicador oficial:
 - não somar quantidade entre assuntos, porque a unidade muda.
 
 Próximo passo: falhar a publicação se o órfão passar de um limite, e guardar mais de uma data de extração.
-
-<!--
-Quatro minutos, com perguntas.
-
-A reexecução troca o arquivo da mesma partição. O manifesto muda a hora da extração e o sha256 permanece se o CSV de origem não mudou. Deixei de fora scheduler e carga incremental, como o guia recomenda quando o prazo aperta. O que importa está aqui: ingestão automática, problema de qualidade medido e uma Gold que não multiplica pedido.
--->
