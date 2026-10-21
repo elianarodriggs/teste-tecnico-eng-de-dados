@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Pipeline de Dados SIGMU — Apresentação</title>
+  <style>
+    @page { size: 338mm 190mm; margin: 0; }
+    :root {
+      --navy: #0f2744;
+      --teal: #1a9e8f;
+      --card: #162d4a;
+      --orange: #e8913a;
+      --blue: #3d7dd6;
+      --light: #f4f7fa;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: #000; color: #fff; }
+    .slide {
+      width: 338mm;
+      height: 190mm;
+      padding: 14mm 18mm;
+      page-break-after: always;
+      position: relative;
+      overflow: hidden;
+      background: #0a0a0a;
+    }
+    .slide.light { background: var(--light); color: var(--navy); }
+    .tag { color: var(--teal); font-size: 9pt; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; }
+    h1 { font-size: 28pt; margin: 4mm 0 2mm; line-height: 1.15; }
+    h2 { font-size: 20pt; margin: 0 0 6mm; color: var(--teal); }
+    .light h2 { color: var(--navy); }
+    .subtitle { font-size: 14pt; opacity: 0.95; margin-bottom: 4mm; }
+    .rule { height: 2px; width: 45mm; background: var(--teal); margin: 5mm 0 6mm; }
+    .cover {
+      background: var(--navy);
+      border-radius: 10px;
+      padding: 16mm 18mm;
+      max-width: 200mm;
+      margin-top: 20mm;
+    }
+    .author { margin-top: 12mm; opacity: 0.65; font-size: 11pt; }
+    ul { margin: 4mm 0; padding-left: 6mm; line-height: 1.45; font-size: 11pt; }
+    li { margin: 2mm 0; }
+    table { border-collapse: collapse; width: 100%; font-size: 10pt; margin-top: 4mm; }
+    th, td { border: 1px solid #3a3a3a; padding: 2.5mm 3mm; text-align: left; }
+    .light th, .light td { border-color: #bbb; }
+    th { background: rgba(26, 158, 143, 0.2); }
+    .light th { background: #dce8ef; }
+    .flow { background: var(--card); border-radius: 8px; padding: 5mm; max-width: 120mm; }
+    .step { padding: 3mm 4mm; border-radius: 5px; margin: 2mm 0; font-weight: 600; font-size: 11pt; }
+    .step .sub { font-weight: 400; font-size: 9pt; opacity: 0.9; margin-top: 1mm; }
+    .s-c3sl { background: var(--navy); }
+    .s-bronze { background: var(--teal); color: #042; }
+    .s-silver { background: var(--blue); }
+    .s-gold { background: var(--orange); color: #221; }
+    .arrow { text-align: center; color: var(--teal); font-size: 12pt; line-height: 1; }
+    .model-box {
+      background: var(--card);
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 5mm 6mm;
+      max-width: 150mm;
+      font-size: 10pt;
+      line-height: 1.5;
+    }
+    .model-box .line { padding: 2mm 0; border-bottom: 1px solid #333; }
+    .model-box .line:last-child { border: none; }
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin-top: 5mm; }
+    .metric {
+      background: var(--card);
+      border-radius: 6px;
+      padding: 4mm;
+      font-size: 9pt;
+    }
+    .metric strong { display: block; font-size: 18pt; color: var(--teal); margin-top: 2mm; }
+    .metric.neg strong { color: #ff6b6b; }
+    pre {
+      background: #1a1a1a;
+      padding: 4mm;
+      border-radius: 6px;
+      font-size: 8pt;
+      line-height: 1.35;
+      white-space: pre-wrap;
+    }
+    .footer-note { position: absolute; bottom: 8mm; right: 18mm; font-size: 8pt; opacity: 0.5; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }
+    p { font-size: 11pt; line-height: 1.45; margin: 2mm 0; }
+  </style>
+</head>
+<body>
+<section class="slide">
+  <div class="cover">
+    <div class="tag">Case técnico · Engenharia de Dados</div>
+    <h1>Pipeline de Dados SIGMU</h1>
+    <p class="subtitle">Do dado público à visão analítica</p>
+    <div class="rule"></div>
+    <p>Arquitetura · Qualidade · Modelagem · Resultados</p>
+    <p class="author">Eliana Rodrigues</p>
+  </div>
+  <span class="footer-note">Slide 1</span>
+</section>
+<section class="slide light">
+  <h2>Problema de negócio</h2>
+  <p><strong>Objetivo:</strong> identificar quais regionais e assuntos concentram maior volume de solicitações, maior tempo de atendimento e maior valor executado.</p>
+  <ul>
+    <li>Transformar arquivos CSV em dados estruturados e consultáveis.</li>
+    <li>Relacionar solicitações, serviços e itens executados.</li>
+    <li>Garantir que os relacionamentos não distorçam os indicadores.</li>
+    <li>Produzir uma camada analítica que responda às consultas solicitadas.</li>
+  </ul>
+  <span class="footer-note" style="color:#666">Slide 2</span>
+</section>
+<section class="slide">
+  <h2>Fontes de dados</h2>
+  <p>Arquivos públicos do SIGMU (C3SL/UFPR) · recorte <strong>21/09/2016</strong></p>
+  <table>
+    <tr><th>Tabela</th><th>Papel no pipeline</th></tr>
+    <tr><td>SERVICO_SOLICITADO</td><td>Solicitações e atributos</td></tr>
+    <tr><td>SITUACAO_SOLICITACAO</td><td>Histórico de situações</td></tr>
+    <tr><td>SERVICO</td><td>Serviços dos pedidos</td></tr>
+    <tr><td>SERVICO_EXECUTADO</td><td>Execução e itens</td></tr>
+    <tr><td>Bairro / tipo</td><td>Dimensões opcionais</td></tr>
+  </table>
+  <p style="margin-top:4mm;font-size:10pt">CSV <code>;</code> · Latin-1 · encoding, nulos e linhas malformadas</p>
+  <span class="footer-note">Slide 3</span>
+</section>
+<section class="slide">
+  <h2>Arquitetura</h2>
+  <div class="two-col">
+    <div class="flow">
+      <div class="step s-c3sl">C3SL / UFPR<div class="sub">Arquivos CSV de origem</div></div>
+      <div class="arrow">↓</div>
+      <div class="step s-bronze">BRONZE<div class="sub">Arquivo original + manifesto</div></div>
+      <div class="arrow">↓</div>
+      <div class="step s-silver">SILVER<div class="sub">Parquet tipado + qualidade</div></div>
+      <div class="arrow">↓</div>
+      <div class="step s-gold">GOLD<div class="sub">Fato por solicitação + agregado</div></div>
+    </div>
+    <div>
+      <p><strong>Componentes:</strong></p>
+      <ul>
+        <li>Python — orquestração</li>
+        <li>Docker Compose — serviços</li>
+        <li>SeaweedFS — bucket <code>lake</code></li>
+        <li>Parquet e SQL — transformação</li>
+      </ul>
+    </div>
+  </div>
+  <span class="footer-note">Slide 4</span>
+</section>
+<section class="slide light">
+  <h2>Bronze: ingestão e rastreabilidade</h2>
+  <ul>
+    <li>Download das fontes públicas.</li>
+    <li>Preservação dos bytes e do nome original.</li>
+    <li>Manifesto: URL, período, extração, tamanho, SHA-256.</li>
+    <li>Núcleo obrigatório; dimensões opcionais.</li>
+    <li>Reexecução no mesmo snapshot substitui objetos.</li>
+  </ul>
+  <span class="footer-note" style="color:#666">Slide 5</span>
+</section>
+<section class="slide light">
+  <h2>Silver: padronização e qualidade</h2>
+  <ul>
+    <li>Tipos adequados; vazios → nulos.</li>
+    <li>Linha de máscara removida.</li>
+    <li>Quarentena se quantidade de campos ≠ header.</li>
+    <li>Métricas de descarte e datas inválidas.</li>
+    <li>Deduplicação por chave natural.</li>
+  </ul>
+  <p><strong>Resultado:</strong> 3 linhas em quarentena (2 solicitação, 1 serviço).</p>
+  <span class="footer-note" style="color:#666">Slide 6</span>
+</section>
+<section class="slide">
+  <h2>Relacionamentos e modelagem</h2>
+  <div class="model-box">
+    <div class="line"><strong>SERVICO_SOLICITADO</strong> — uma linha por solicitação</div>
+    <div class="line" style="text-align:center;color:var(--teal)">↓</div>
+    <div class="line"><strong>SERVICO</strong> — um pedido pode ter vários serviços</div>
+    <div class="line" style="text-align:center;color:var(--teal)">↓</div>
+    <div class="line"><strong>SERVICO_EXECUTADO</strong> — um serviço pode ter vários itens</div>
+  </div>
+  <p style="margin-top:5mm"><strong>Agregação antes dos joins</strong> para preservar o grão do fato.</p>
+  <p>Decisão central: Gold com <strong>uma linha por SSO_IDF</strong>.</p>
+  <span class="footer-note">Slide 7</span>
+</section>
+<section class="slide light">
+  <h2>Gold: regras de negócio</h2>
+  <ul>
+    <li>Volume: solicitações distintas.</li>
+    <li>Tipo: <code>SSO_ASSUNTO</code> em maiúsculas.</li>
+    <li>Regional em maiúsculas; vazio → NÃO INFORMADO.</li>
+    <li><code>possui_execucao</code> para ausência de serviço.</li>
+    <li>Tempo com fallback documentado.</li>
+    <li>Tempo negativo: fora da média/mediana, mas contabilizado.</li>
+    <li>Quantidade e valor agregados; ausência permanece nula.</li>
+  </ul>
+  <span class="footer-note" style="color:#666">Slide 8</span>
+</section>
